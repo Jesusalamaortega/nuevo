@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ahorcado Mágico</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Mountains+of+Christmas&display=swap');
+  body {
+    margin: 0;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: #f0e6f6;
+    font-family: 'Mountains of Christmas', cursive, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  h1 {
+    margin-top: 20px;
+    font-size: 3em;
+    text-shadow: 0 0 8px #b0a0f0;
+  }
+  #ahorcado-svg {
+    width: 200px;
+    height: 250px;
+    margin: 10px 0;
+    filter: drop-shadow(0 0 5px #9b59b6);
+  }
+  #word-display {
+    font-size: 2.2em;
+    letter-spacing: 12px;
+    margin: 20px 0;
+  }
+  #letters-container {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 400px;
+    justify-content: center;
+    margin: 20px 0;
+  }
+  .letter-btn {
+    background: #764ba2;
+    border: none;
+    margin: 5px;
+    padding: 15px 18px;
+    font-size: 1.4em;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #f0e6f6;
+    box-shadow: 0 0 10px #8e44ad;
+    transition: background-color 0.3s, transform 0.2s;
+    user-select: none;
+  }
+  .letter-btn:hover:not(:disabled) {
+    background: #9b59b6;
+    transform: scale(1.1);
+  }
+  .letter-btn:disabled {
+    background: #333;
+    cursor: default;
+    color: #666;
+    box-shadow: none;
+  }
+  #message {
+    font-size: 1.3em;
+    margin: 15px 0;
+    min-height: 1.5em;
+    text-shadow: 0 0 10px #c8a2f5;
+  }
+  #timer {
+    font-size: 1.2em;
+    margin-top: 10px;
+  }
+  #level-display {
+    margin-top: 15px;
+    font-weight: bold;
+    font-size: 1.4em;
+    color: #d1b3ff;
+  }
+  #music-control {
+    margin-top: 10px;
+    cursor: pointer;
+    color: #d1b3ff;
+    font-size: 1.2em;
+  }
+  /* Magical sparkles animation */
+  .sparkle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle, #fff, transparent);
+    border-radius: 50%;
+    animation: sparkleAnim 1.5s infinite;
+  }
+  @keyframes sparkleAnim {
+    0%, 100% { opacity: 0; transform: scale(0.5) translateY(0); }
+    50% { opacity: 1; transform: scale(1) translateY(-10px); }
+  }
+</style>
+</head>
+<body>
+
+<h1>¡Ahorcado Mágico!</h1>
+
+<!-- SVG personaje animado -->
+<svg id="ahorcado-svg" viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg" aria-label="Personaje del ahorcado">
+  <!-- Estructura del ahorcado -->
+  <line x1="20" y1="150" x2="100" y2="150" stroke="#8e44ad" stroke-width="4" />
+  <line x1="40" y1="150" x2="40" y2="20" stroke="#8e44ad" stroke-width="4" />
+  <line x1="40" y1="20" x2="80" y2="20" stroke="#8e44ad" stroke-width="4" />
+  <line x1="80" y1="20" x2="80" y2="40" stroke="#8e44ad" stroke-width="4" />
+  <!-- Cabeza -->
+  <circle id="head" cx="80" cy="55" r="15" stroke="#b19cd9" stroke-width="3" fill="#cfc2f8" />
+  <!-- Ojos animados -->
+  <circle cx="72" cy="50" r="3" fill="#5e2a8a">
+    <animate attributeName="r" values="3;1.5;3" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="88" cy="50" r="3" fill="#5e2a8a">
+    <animate attributeName="r" values="3;1.5;3" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Boca -->
+  <path id="mouth" d="M70 70 Q80 80 90 70" stroke="#8e44ad" stroke-width="2" fill="none" />
+  <!-- Cuerpo -->
+  <line id="body" x1="80" y1="70" x2="80" y2="110" stroke="#8e44ad" stroke-width="4" />
+  <!-- Brazos -->
+  <line id="left-arm" x1="80" y1="80" x2="60" y2="100" stroke="#8e44ad" stroke-width="4" />
+  <line id="right-arm" x1="80" y1="80" x2="100" y2="100" stroke="#8e44ad" stroke-width="4" />
+  <!-- Piernas -->
+  <line id="left-leg" x1="80" y1="110" x2="60" y2="140" stroke="#8e44ad" stroke-width="4" />
+  <line id="right-leg" x1="80" y1="110" x2="100" y2="140" stroke="#8e44ad" stroke-width="4" />
+</svg>
+
+<div id="word-display">_ _ _ _ _</div>
+
+<div id="letters-container"></div>
+
+<div id="message"></div>
+<div id="timer">Tiempo restante: <span id="time-remaining">60</span> s</div>
+<div id="level-display">Nivel: 1</div>
+<div id="music-control">🎵 Música: <span id="music-status">ON</span></div>
+
+<audio id="bg-music" loop src="https://cdn.pixabay.com/download/audio/2022/03/20/audio_3f52a3a2e8.mp3?filename=magical-fantasy-ambience-6606.mp3"></audio>
+
+<script>
+  const wordsByLevel = [
+    ['MAGIA', 'HECHIZO', 'VARITA', 'BRUJA', 'MAGO'],
+    ['CONJURO', 'POTION', 'DRAGON', 'ELFO', 'HADA'],
+    ['ESPECTRO', 'ALQUIMIA', 'ENCANTAR', 'FANTASMA', 'HECHICERIA']
+  ];
+  let currentLevel = 0;
+  let chosenWord = '';
+  let guessedLetters = [];
+  let wrongGuesses = 0;
+  const maxWrongGuesses = 6;
+  let timeLeft = 60;
+  let timerInterval = null;
+
+  const wordDisplay = document.getElementById('word-display');
+  const lettersContainer = document.getElementById('letters-container');
+  const message = document.getElementById('message');
+  const timeRemaining = document.getElementById('time-remaining');
+  const levelDisplay = document.getElementById('level-display');
+  const musicControl = document.getElementById('music-control');
+  const musicStatus = document.getElementById('music-status');
+  const bgMusic = document.getElementById('bg-music');
+
+  // Partes para mostrar o ocultar según errores
+  const bodyParts = [
+    document.getElementById('head'),
+    document.getElementById('body'),
+    document.getElementById('left-arm'),
+    document.getElementById('right-arm'),
+    document.getElementById('left-leg'),
+    document.getElementById('right-leg')
+  ];
+
+  function startGame() {
+    guessedLetters = [];
+    wrongGuesses = 0;
+    timeLeft = 60;
+    message.textContent = '';
+    levelDisplay.textContent = `Nivel: ${currentLevel + 1}`;
+    chosenWord = wordsByLevel[currentLevel][Math.floor(Math.random() * wordsByLevel[currentLevel].length)].toUpperCase();
+    updateWordDisplay();
+    lettersContainer.innerHTML = '';
+    for (let i = 65; i <= 90; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = String.fromCharCode(i);
+      btn.classList.add('letter-btn');
+      btn.addEventListener('click', () => letterClick(btn.textContent, btn));
+      lettersContainer.appendChild(btn);
+    }
+    bodyParts.forEach(part => part.style.opacity = 0.1);
+    startTimer();
+  }
+
+  function updateWordDisplay() {
+    let display = '';
+    for (const letter of chosenWord) {
+      if (guessedLetters.includes(letter)) {
+        display += letter + ' ';
+      } else if (letter === ' ') {
+        display += '  ';
+      } else {
+        display += '_ ';
+      }
+    }
+    wordDisplay.textContent = display.trim();
+  }
+
+  function letterClick(letter, btn) {
+    btn.disabled = true;
+    if (chosenWord.includes(letter)) {
+      guessedLetters.push(letter);
+      updateWordDisplay();
+      checkWin();
+      addSparkleEffect();
+    } else {
+      wrongGuesses++;
+      showBodyPart(wrongGuesses - 1);
+      checkLose();
+      addSparkleEffect();
+    }
+  }
+
+  function showBodyPart(index) {
+    if(bodyParts[index]) {
+      bodyParts[index].style.opacity = 1;
+      animateBodyPart(bodyParts[index]);
+    }
+  }
+
+  function animateBodyPart(part) {
+    part.animate([
+      { transform: 'scale(1)' },
+      { transform: 'scale(1.2)' },
+      { transform: 'scale(1)' }
+    ], {
+      duration: 400,
+      easing: 'ease-in-out'
+    });
+  }
+
+  function checkWin() {
+    const won = chosenWord.split('').every(l => l === ' ' || guessedLetters.includes(l));
+    if (won) {
+      message.textContent = '¡Ganaste! 🎉✨';
+      stopTimer();
+      setTimeout(() => {
+        if (currentLevel < wordsByLevel.length - 1) {
+          currentLevel++;
+          startGame();
+        } else {
+          message.textContent = '¡Felicidades! Completaste todos los niveles mágicos.';
+        }
+      }, 2000);
+    }
+  }
+
+  function checkLose() {
+    if (wrongGuesses >= maxWrongGuesses) {
+      message.textContent = `Perdiste. La palabra era: ${chosenWord}`;
+      stopTimer();
+      disableAllLetters();
+      setTimeout(() => {
+        currentLevel = 0;
+        startGame();
+      }, 4000);
+    }
+  }
+
+  function disableAllLetters() {
+    const buttons = lettersContainer.querySelectorAll('button');
+    buttons.forEach(btn => btn.disabled = true);
+  }
+
+  function startTimer() {
+    timeRemaining.textContent = timeLeft;
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      timeRemaining.textContent = timeLeft;
+      if (timeLeft <= 0) {
+        message.textContent = `Se acabó el tiempo. La palabra era: ${chosenWord}`;
+        stopTimer();
+        disableAllLetters();
+        setTimeout(() => {
+          currentLevel = 0;
+          startGame();
+        }, 4000);
+      }
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+  }
+
+  // Música
+  let musicOn = true;
+  musicControl.addEventListener('click', () => {
+    musicOn = !musicOn;
+    if(musicOn) {
+      bgMusic.play();
+      musicStatus.textContent = 'ON';
+      musicControl.style.color = '#d1b3ff';
+    } else {
+      bgMusic.pause();
+      musicStatus.textContent = 'OFF';
+      musicControl.style.color = '#555';
+    }
+  });
+
+  // Arranca música automáticamente si es posible
+  window.onload = () => {
+    startGame();
+    bgMusic.volume = 0.3;
+    bgMusic.play().catch(() => {
+      // Autoplay bloqueado por navegador, espera a interacción
+      musicStatus.textContent = 'OFF';
+      musicControl.style.color = '#555';
+      musicOn = false;
+    });
+  };
+
+  // Efecto mágico: crea pequeños destellos en pantalla
+  function addSparkleEffect() {
+    for(let i=0; i<5; i++) {
+      const sparkle = document.createElement('div');
+      sparkle.className = 'sparkle';
+      sparkle.style.left = (Math.random() * window.innerWidth) + 'px';
+      sparkle.style.top = (Math.random() * window.innerHeight) + 'px';
+      sparkle.style.animationDelay = (Math.random() * 1.5) + 's';
+      document.body.appendChild(sparkle);
+      setTimeout(() => sparkle.remove(), 1500);
+    }
+  }
+</script>
+</body>
+</html>
